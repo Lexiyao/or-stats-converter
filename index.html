@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odds-Ratio Stats Converter</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #1a1f2b;
+    --muted: #6b7280;
+    --line: #e3e6eb;
+    --accent: #2b6cb0;
+    --accent-soft: #ebf3fb;
+    --ok: #276749;
+    --warn-bg: #fffbeb;
+    --warn-ink: #92610a;
+    --warn-line: #f4d47a;
+    --err-bg: #fdecec;
+    --err-ink: #a01e1e;
+    --err-line: #f0b0b0;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171d; --panel: #1d222b; --ink: #e7eaf0; --muted: #98a1b0;
+      --line: #2c333f; --accent: #5aa2e0; --accent-soft: #223140;
+      --ok: #7ee2a8; --warn-bg: #2c2510; --warn-ink: #e8c766; --warn-line: #5a4a17;
+      --err-bg: #33191a; --err-ink: #f0a0a0; --err-line: #6a2a2a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5; padding: 24px 16px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 20px; color: var(--muted); font-size: 0.92rem; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px; margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); margin: 0 0 12px; font-weight: 600;
+  }
+  /* paste row */
+  .paste-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .paste-row input { flex: 1 1 240px; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-size: 0.86rem; padding: 8px 14px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    cursor: pointer; transition: background .12s, border-color .12s;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { filter: brightness(1.05); }
+  /* confidence chips */
+  .chips { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .chip {
+    padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--panel); cursor: pointer; font-size: 0.85rem; color: var(--muted);
+  }
+  .chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .chips input {
+    width: 68px; padding: 6px 8px; text-align: center;
+  }
+  /* input grid */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .field label { display: block; font-size: 0.76rem; color: var(--muted); margin-bottom: 4px; }
+  input {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); color: var(--ink); font-family: var(--mono); font-size: 0.95rem;
+  }
+  input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  /* banner */
+  .banner {
+    margin-top: 14px; padding: 9px 12px; border-radius: 8px; font-size: 0.85rem;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid transparent;
+  }
+  .banner.muted { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
+  .msg { margin-top: 10px; padding: 9px 12px; border-radius: 8px; font-size: 0.85rem; }
+  .msg.warn { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-line); }
+  .msg.err  { background: var(--err-bg);  color: var(--err-ink);  border: 1px solid var(--err-line); }
+  /* results */
+  .results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 560px) { .results { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 400px) {
+    .grid, .results { grid-template-columns: 1fr; }
+    .paste-row input { flex-basis: 100%; }
+  }
+  .res {
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+  }
+  .res .k { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .res .v { font-family: var(--mono); font-size: 1.05rem; margin-top: 3px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  .res.span2 { grid-column: span 2; }
+  @media (max-width: 560px) { .res.span2 { grid-column: span 2; } }
+  @media (max-width: 400px) { .res.span2 { grid-column: span 1; } }
+  .res-head { display: flex; justify-content: space-between; align-items: center; margin: 0 0 12px; }
+  .res-head h2 { margin: 0; }
+  .placeholder { color: var(--muted); font-size: 0.9rem; padding: 8px 0; }
+  footer { color: var(--muted); font-size: 0.78rem; margin-top: 8px; }
+  footer code { font-family: var(--mono); background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+  .copied { color: var(--ok); font-size: 0.78rem; margin-left: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Odds-Ratio Stats Converter</h1>
+    <p>Enter any sufficient combination — OR + CI, OR + SE, log-OR + p, or paste a reported string. Everything else recomputes from the canonical log-OR (β) and its standard error.</p>
+  </header>
+
+  <div class="card">
+    <h2>Paste a reported result</h2>
+    <div class="paste-row">
+      <input id="paste" type="text" placeholder="e.g.  OR 2.00 (95% CI 1.25–3.20)" />
+      <div class="btns">
+        <button class="primary" id="parseBtn">Parse</button>
+        <button id="exampleBtn">Example</button>
+        <button id="clearBtn">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Confidence level</h2>
+    <div class="chips" id="confChips">
+      <span class="chip" data-conf="90">90%</span>
+      <span class="chip active" data-conf="95">95%</span>
+      <span class="chip" data-conf="99">99%</span>
+      <span style="color:var(--muted);font-size:0.85rem;">custom</span>
+      <input id="confCustom" type="number" min="50" max="99.99" step="0.5" placeholder="%" />
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Inputs</h2>
+    <div class="grid">
+      <div class="field"><label for="in-or">Odds ratio (OR)</label><input id="in-or" data-key="or" inputmode="decimal" /></div>
+      <div class="field"><label for="in-logOR">log-OR (β)</label><input id="in-logOR" data-key="logOR" inputmode="decimal" /></div>
+      <div class="field"><label for="in-se">SE of log-OR</label><input id="in-se" data-key="se" inputmode="decimal" /></div>
+      <div class="field"><label for="in-ciLo">CI lower (OR scale)</label><input id="in-ciLo" data-key="ciLo" inputmode="decimal" /></div>
+      <div class="field"><label for="in-ciHi">CI upper (OR scale)</label><input id="in-ciHi" data-key="ciHi" inputmode="decimal" /></div>
+      <div class="field"><label for="in-pval">Two-sided p-value</label><input id="in-pval" data-key="pval" inputmode="decimal" /></div>
+    </div>
+    <div id="banner" class="banner muted">Enter values above to begin.</div>
+    <div id="messages"></div>
+  </div>
+
+  <div class="card">
+    <div class="res-head">
+      <h2>Derived</h2>
+      <div><button id="copyBtn">Copy summary</button><span id="copied" class="copied" style="display:none">copied</span></div>
+    </div>
+    <div id="results">
+      <div class="placeholder">Results will appear here once inputs are sufficient.</div>
+    </div>
+  </div>
+
+  <footer>
+    Confidence intervals use the Wald (log-normal) approximation: symmetric on the log scale, CI = exp(β ± z<sub>crit</sub>·SE).
+    These will not exactly match profile-penalised-likelihood or exact intervals (e.g. Firth / <code>logistf</code>) — treat derived SE/CI as approximate reconstructions of those. Normal CDF via Abramowitz–Stegun; inverse via Acklam (accuracy ≈ 1e-7).
+  </footer>
+</div>
+
+<script>
+/* ===== Verified math core (identical to node-tested core.js) ===== */
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const t=1/(1+0.3275911*x);const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y;}
+function normCDF(x){return 0.5*(1+erf(x/Math.SQRT2));}
+function invNorm(p){
+  if(p<=0||p>=1)return NaN;
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const pl=0.02425,ph=1-pl;let q;
+  if(p<pl){q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  else if(p<=ph){q=p-0.5;const r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);}
+  else{q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+}
+function zCrit(cp){const alpha=1-cp/100;return invNorm(1-alpha/2);}
+function pFromZ(z){return 2*(1-normCDF(Math.abs(z)));}
+function zFromP(p){return invNorm(1-p/2);}
+
+function parseORCI(str){
+  if(!str)return null;
+  const s=str.replace(/[‒–—−]/g,'-');
+  const re=/\d*\.?\d+/g;let m;const tokens=[];
+  while((m=re.exec(s))!==null){
+    const after=s.slice(m.index+m[0].length).trimStart();
+    tokens.push({val:parseFloat(m[0]),pct:after.startsWith('%')});
+  }
+  const vals=tokens.filter(t=>!t.pct).map(t=>t.val);
+  if(vals.length<3)return null;
+  const or=vals[0],lo=vals[1],hi=vals[2];
+  if(!(lo<=or&&or<=hi))return null;
+  return{or,lo,hi};
+}
+
+/* ===== Verified resolution (identical to node-tested resolve.js) ===== */
+function num(s){if(s===null||s===undefined)return null;const t=String(s).trim();if(t==='')return null;const v=Number(t);return Number.isFinite(v)?v:NaN;}
+function resolve(inputs,conf){
+  const or=num(inputs.or),logOR=num(inputs.logOR),se=num(inputs.se);
+  const ciLo=num(inputs.ciLo),ciHi=num(inputs.ciHi),pval=num(inputs.pval);
+  const zc=zCrit(conf);const errors=[],warnings=[];
+  if(or!==null&&(Number.isNaN(or)||or<=0))errors.push('OR must be a number > 0');
+  if(se!==null&&(Number.isNaN(se)||se<=0))errors.push('SE must be a number > 0');
+  if(ciLo!==null&&(Number.isNaN(ciLo)||ciLo<=0))errors.push('CI lower must be > 0');
+  if(ciHi!==null&&(Number.isNaN(ciHi)||ciHi<=0))errors.push('CI upper must be > 0');
+  if(ciLo!==null&&ciHi!==null&&!Number.isNaN(ciLo)&&!Number.isNaN(ciHi)&&ciLo>ciHi)errors.push('CI lower must be ≤ CI upper');
+  if(logOR!==null&&Number.isNaN(logOR))errors.push('log-OR must be a number');
+  if(pval!==null&&(Number.isNaN(pval)||pval<=0||pval>=1))errors.push('p must be in (0, 1)');
+  if(!Number.isFinite(zc))errors.push('Confidence level must be in (50, 100)');
+  if(errors.length)return{ok:false,errors,warnings};
+  const haveCI=ciLo!==null&&ciHi!==null;
+  let beta=null,betaSrc=null;
+  if(logOR!==null){beta=logOR;betaSrc='log-OR';}
+  else if(or!==null){beta=Math.log(or);betaSrc='OR';}
+  else if(haveCI){beta=(Math.log(ciLo)+Math.log(ciHi))/2;betaSrc='CI midpoint';}
+  let seVal=null,seSrc=null;
+  if(se!==null){seVal=se;seSrc='SE';}
+  else if(haveCI){seVal=(Math.log(ciHi)-Math.log(ciLo))/(2*zc);seSrc=conf+'% CI';}
+  else if(pval!==null&&beta!==null&&beta!==0){seVal=Math.abs(beta)/zFromP(pval);seSrc='p-value';}
+  if(beta===null||seVal===null)return{ok:false,errors:[],warnings,incomplete:true};
+  if(se!==null&&haveCI){
+    const seCI=(Math.log(ciHi)-Math.log(ciLo))/(2*zc);
+    if(Math.abs(seCI-se)>0.01*Math.max(se,1e-9))warnings.push('SE field ('+se+') disagrees with CI-implied SE ('+seCI.toFixed(4)+'); using SE field.');
+  }
+  const z=beta/seVal;const p=pFromZ(z);
+  if(pval!==null&&seSrc!=='p-value'){
+    if(Math.abs(p-pval)>0.02*Math.max(pval,1e-9)&&Math.abs(p-pval)>1e-4)warnings.push('Entered p ('+pval+') differs from computed p ('+p.toExponential(2)+'); showing computed.');
+  }
+  return{ok:true,errors,warnings,beta,se:seVal,betaSrc,seSrc,OR:Math.exp(beta),z,ciLo:Math.exp(beta-zc*seVal),ciHi:Math.exp(beta+zc*seVal),p};
+}
+
+/* ===== Formatting ===== */
+function sig(x,n){
+  if(!Number.isFinite(x))return '—';
+  if(x===0)return '0';
+  const a=Math.abs(x);
+  if(a>=1e5||a<1e-4)return x.toExponential(n-1);
+  return String(Number(x.toPrecision(n)));
+}
+function fmtP(p){
+  if(!Number.isFinite(p))return '—';
+  if(p<1e-4)return p.toExponential(2);
+  return p.toFixed(4);
+}
+
+/* ===== State + DOM wiring ===== */
+let conf=95;
+const inputEls=[...document.querySelectorAll('input[data-key]')];
+const $=id=>document.getElementById(id);
+
+function readInputs(){
+  const o={};
+  inputEls.forEach(el=>{o[el.dataset.key]=el.value;});
+  return o;
+}
+
+function render(){
+  const r=resolve(readInputs(),conf);
+  const banner=$('banner'), messages=$('messages'), results=$('results');
+  messages.innerHTML='';
+
+  if(!r.ok&&r.errors&&r.errors.length){
+    banner.className='banner muted';
+    banner.textContent='Fix input errors below.';
+    r.errors.forEach(e=>{const d=document.createElement('div');d.className='msg err';d.textContent=e;messages.appendChild(d);});
+    results.innerHTML='<div class="placeholder">Results will appear here once inputs are valid.</div>';
+    return;
+  }
+  if(!r.ok){
+    banner.className='banner muted';
+    banner.textContent='Need one more value: provide β (via OR, log-OR, or CI) and a spread (SE, CI, or p-value).';
+    results.innerHTML='<div class="placeholder">Results will appear here once inputs are sufficient.</div>';
+    return;
+  }
+
+  banner.className='banner';
+  banner.textContent='Using '+r.betaSrc+' → β, and '+r.seSrc+' → SE.';
+  (r.warnings||[]).forEach(w=>{const d=document.createElement('div');d.className='msg warn';d.textContent=w;messages.appendChild(d);});
+
+  results.className='results';
+  results.innerHTML=
+    cell('OR', sig(r.OR,4))+
+    cell('log-OR (β)', r.beta.toFixed(4))+
+    cell('SE (log-OR)', r.se.toFixed(4))+
+    cell('z (Wald)', r.z.toFixed(3))+
+    cell('Two-sided p', fmtP(r.p))+
+    cell(conf+'% CI (OR)', sig(r.ciLo,4)+' – '+sig(r.ciHi,4), true);
+}
+function cell(k,v,span){
+  return '<div class="res'+(span?' span2':'')+'"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>';
+}
+
+/* events */
+inputEls.forEach(el=>el.addEventListener('input',render));
+
+$('confChips').addEventListener('click',e=>{
+  const c=e.target.closest('.chip');if(!c)return;
+  conf=Number(c.dataset.conf);
+  document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active',x===c));
+  $('confCustom').value='';
+  render();
+});
+$('confCustom').addEventListener('input',e=>{
+  const v=Number(e.target.value);
+  if(e.target.value.trim()!==''&&Number.isFinite(v)){
+    conf=v;document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+  }
+  render();
+});
+
+$('parseBtn').addEventListener('click',()=>{
+  const parsed=parseORCI($('paste').value);
+  const msg=$('messages');
+  if(!parsed){
+    banner_reset();
+    msg.innerHTML='<div class="msg err">Could not read OR + CI from that string. Expected e.g. "OR 2.00 (95% CI 1.25–3.20)".</div>';
+    return;
+  }
+  setField('or',parsed.or);setField('ciLo',parsed.lo);setField('ciHi',parsed.hi);
+  setField('logOR','');setField('se','');setField('pval','');
+  render();
+});
+function banner_reset(){const b=$('banner');b.className='banner muted';b.textContent='Enter values above to begin.';}
+function setField(key,val){const el=inputEls.find(e=>e.dataset.key===key);if(el)el.value=val;}
+
+$('exampleBtn').addEventListener('click',()=>{
+  setField('or','2.00');setField('ciLo','1.25');setField('ciHi','3.20');
+  setField('logOR','');setField('se','');setField('pval','');
+  $('paste').value='OR 2.00 (95% CI 1.25–3.20)';
+  render();
+});
+$('clearBtn').addEventListener('click',()=>{
+  inputEls.forEach(el=>el.value='');$('paste').value='';
+  render();
+});
+
+$('copyBtn').addEventListener('click',async()=>{
+  const r=resolve(readInputs(),conf);
+  if(!r.ok)return;
+  const txt='OR '+sig(r.OR,4)+' ('+conf+'% CI '+sig(r.ciLo,4)+'–'+sig(r.ciHi,4)+'); '+
+    'log-OR '+r.beta.toFixed(4)+', SE '+r.se.toFixed(4)+', z '+r.z.toFixed(3)+', p '+fmtP(r.p);
+  try{await navigator.clipboard.writeText(txt);}catch(e){}
+  const tag=$('copied');tag.style.display='inline';setTimeout(()=>tag.style.display='none',1400);
+});
+
+render();
+</script>
+</body>
+</html>
