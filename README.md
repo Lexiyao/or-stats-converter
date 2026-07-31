@@ -11,7 +11,7 @@ Enter any *sufficient* combination and everything else recomputes live from the 
 - **OR ↔ log-OR (β)**
 - **CI ↔ SE** (95% by default; 90 / 99 / custom supported)
 - **SE / β ↔ two-sided p-value** (Wald z)
-- **Paste a reported string** — e.g. `OR 2.00 (95% CI 1.25–3.20)` — and it fills OR + CI for you
+- **Paste a reported string** such as `OR 2.00 (95% CI 1.25–3.20)`, and it fills OR + CI for you
 
 Outputs: OR, log-OR (β), SE, Wald z, two-sided p, and the confidence interval at the chosen level.
 
@@ -22,6 +22,6 @@ Outputs: OR, log-OR (β), SE, Wald z, two-sided p, and the confidence interval a
 
 ## Development
 
-Everything lives in `index.html` — HTML, CSS, and JavaScript, no build step and no external dependencies. Open it in any browser.
+Everything lives in `index.html`: HTML, CSS, and JavaScript, with no build step and no external dependencies. Open it in any browser.
 
 The math core and input-resolution logic were unit-tested (34 assertions against known reference values: `z_crit(95%) = 1.959964`, two-sided p for z = 1.96 ≈ 0.04998, CI↔SE round-trips, parser formats) before being embedded.
